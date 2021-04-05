@@ -8,6 +8,7 @@ import (
 	"github.com/wizelineacademy/academy-go-q12021/service"
 )
 
+//go:generate mockery --name IPokemonBusiness --filename ./mock_pokemon_business.go --outpkg business --structname MockPokemonBusiness
 type IPokemonBusiness interface {
 	GetAll() ([]model.Pokemon, error)
 	GetByID(id int) (*model.Pokemon, error)

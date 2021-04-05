@@ -4,27 +4,23 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/wizelineacademy/academy-go-q12021/model"
-	mocksrepo "github.com/wizelineacademy/academy-go-q12021/repository/mocks"
-	mocksservice "github.com/wizelineacademy/academy-go-q12021/service/mocks"
+	repository "github.com/wizelineacademy/academy-go-q12021/repository/mocks"
+	service "github.com/wizelineacademy/academy-go-q12021/service/mocks"
 )
 
 func TestGetAllPokemons(t *testing.T) {
+	mockRepo := repository.MockPokemonRepository{}
 
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	mockRepo := mocksrepo.NewMockIPokemonRepository(mockCtrl)
-
-	testService, err := NewPokemonBusiness(mockRepo, nil)
+	testService, err := NewPokemonBusiness(&mockRepo, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	mockRepo.EXPECT().GetAll().Return([]model.Pokemon{
-		model.Pokemon{
+	mockRepo.On("GetAll").Return([]model.Pokemon{
+		{
 			Id:             3,
 			Name:           "Bulbasaur",
 			Height:         10,
@@ -33,7 +29,7 @@ func TestGetAllPokemons(t *testing.T) {
 			PrimaryType:    "Plant",
 			SecondaryType:  "Poison",
 		},
-		model.Pokemon{
+		{
 			Id:             10,
 			Name:           "Charmander",
 			Height:         10,
@@ -42,13 +38,13 @@ func TestGetAllPokemons(t *testing.T) {
 			PrimaryType:    "Plant",
 			SecondaryType:  "Poison",
 		},
-	}, nil).Times(1)
+	}, nil).Once()
 
 	pokemons, _ := testService.GetAll()
 
 	assert.NotNil(t, pokemons)
 
-	mockRepo.EXPECT().GetAll().Return(nil, errors.New("There was an error")).Times(1)
+	mockRepo.On("GetAll").Return(nil, errors.New("There was an error")).Once()
 
 	listPokemons, err := testService.GetAll()
 
@@ -58,17 +54,14 @@ func TestGetAllPokemons(t *testing.T) {
 }
 
 func TestGetByID(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
+	mockRepo := repository.MockPokemonRepository{}
 
-	mockRepo := mocksrepo.NewMockIPokemonRepository(mockCtrl)
-
-	testBusiness, err := NewPokemonBusiness(mockRepo, nil)
+	testBusiness, err := NewPokemonBusiness(&mockRepo, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	mockRepo.EXPECT().GetByID(gomock.Eq(1)).Return(
+	mockRepo.On("GetByID", mock.Anything).Return(
 		&model.Pokemon{
 			Id:             1,
 			Name:           "Bulbasaur",
@@ -77,14 +70,14 @@ func TestGetByID(t *testing.T) {
 			BaseExperience: 100,
 			PrimaryType:    "Plant",
 			SecondaryType:  "Poison",
-		}, nil).Times(1)
+		}, nil).Once()
 
 	pokemon, err := testBusiness.GetByID(1)
 
 	assert.NotNil(t, &pokemon)
 	assert.Nil(t, err)
 
-	mockRepo.EXPECT().GetByID(gomock.Eq(1)).Return(nil, nil).Times(1)
+	mockRepo.On("GetByID", mock.Anything).Return(nil, nil).Once()
 
 	pokemon2, err := testBusiness.GetByID(1)
 
@@ -92,25 +85,47 @@ func TestGetByID(t *testing.T) {
 	assert.Nil(t, pokemon2)
 }
 
-func TestStoreByID(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
+func TestGetByIDErrorWithoutInfo(t *testing.T) {
+	mockRepo := repository.MockPokemonRepository{}
 
-	mockService := mocksservice.NewMockIExternalPokemonAPI(mockCtrl)
+	mockRepo.On("GetByID", mock.Anything).Return(nil, nil).Once()
 
-	testBusiness, err := NewPokemonBusiness(nil, mockService)
+	testBusiness, err := NewPokemonBusiness(&mockRepo, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	mockService.EXPECT().GetPokemonFromAPI(1).Return(nil, errors.New("Error")).Times(1)
+	pokemon, err := testBusiness.GetByID(1)
+
+	assert.Nil(t, err)
+	assert.Nil(t, pokemon)
+
+}
+
+func TestStoreByID(t *testing.T) {
+	mockService := service.MockPokemonService{}
+
+	testBusiness, err := NewPokemonBusiness(nil, &mockService)
+	if err != nil {
+		panic(err)
+	}
+
+	mockService.On("GetPokemonFromAPI", mock.Anything).Return(nil, errors.New("Error")).Once()
 
 	pokemon, err := testBusiness.StoreByID(1)
 
 	assert.Nil(t, pokemon)
 	assert.NotNil(t, err)
+}
 
-	mockRepo := mocksrepo.NewMockIPokemonRepository(mockCtrl)
+func TestStoreByIDErrorStoreToCSV(t *testing.T) {
+	mockService := service.MockPokemonService{}
+	mockRepo := repository.MockPokemonRepository{}
+
+	testBusiness, err := NewPokemonBusiness(&mockRepo, &mockService)
+	if err != nil {
+		panic(err)
+	}
 
 	pokemonAPI := model.PokemonAPI{
 		Id:             1,
@@ -119,13 +134,13 @@ func TestStoreByID(t *testing.T) {
 		Weight:         20,
 		BaseExperience: 100,
 		Types: []model.TypeSlot{
-			model.TypeSlot{Type: model.Type{Name: "Plant"}},
-			model.TypeSlot{Type: model.Type{Name: "Poison"}},
+			{Type: model.Type{Name: "Plant"}},
+			{Type: model.Type{Name: "Poison"}},
 		},
 	}
 
-	mockService.EXPECT().GetPokemonFromAPI(gomock.Any()).Return(&pokemonAPI, nil).Times(1)
-	mockRepo.EXPECT().StoreToCSV(gomock.Any()).Return(nil, errors.New("Error storing data")).Times(1)
+	mockService.On("GetPokemonFromAPI", mock.Anything).Return(&pokemonAPI, nil).Once()
+	mockRepo.On("StoreToCSV", mock.Anything).Return(nil, errors.New("Error storing data")).Once()
 
 	pokemon2, err := testBusiness.StoreByID(1)
 

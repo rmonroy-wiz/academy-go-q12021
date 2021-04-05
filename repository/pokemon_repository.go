@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+//go:generate mockery --name IPokemonRepository --filename ./mock_pokemon_repository.go --outpkg repository --structname MockPokemonRepository
 type IPokemonRepository interface {
 	GetAll() ([]model.Pokemon, error)
 	OpenFile() (*os.File, error)

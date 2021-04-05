@@ -10,6 +10,7 @@ import (
 	"github.com/wizelineacademy/academy-go-q12021/model"
 )
 
+//go:generate mockery --name IExternalPokemonAPI --filename ./mock_pokemon_service.go --outpkg service --structname MockPokemonService
 type IExternalPokemonAPI interface {
 	GetPokemonFromAPI(id int) (*model.PokemonAPI, error)
 }
